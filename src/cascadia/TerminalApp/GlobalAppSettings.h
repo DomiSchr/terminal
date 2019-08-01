@@ -24,7 +24,6 @@ namespace TerminalApp
 
 class TerminalApp::GlobalAppSettings final
 {
-
 public:
     GlobalAppSettings();
     ~GlobalAppSettings();
@@ -48,10 +47,13 @@ public:
     bool GetShowTabsInTitlebar() const noexcept;
     void SetShowTabsInTitlebar(const bool showTabsInTitlebar) noexcept;
 
+    std::wstring GetWordDelimiters() const noexcept;
+    void SetWordDelimiters(const std::wstring wordDelimiters) noexcept;
+
     winrt::Windows::UI::Xaml::ElementTheme GetRequestedTheme() const noexcept;
 
-    winrt::Windows::Data::Json::JsonObject ToJson() const;
-    static GlobalAppSettings FromJson(winrt::Windows::Data::Json::JsonObject json);
+    Json::Value ToJson() const;
+    static GlobalAppSettings FromJson(const Json::Value& json);
 
     void ApplyToSettings(winrt::Microsoft::Terminal::Settings::TerminalSettings& settings) const noexcept;
 
@@ -69,9 +71,9 @@ private:
     bool _showTitleInTitlebar;
 
     bool _showTabsInTitlebar;
+    std::wstring _wordDelimiters;
     winrt::Windows::UI::Xaml::ElementTheme _requestedTheme;
 
     static winrt::Windows::UI::Xaml::ElementTheme _ParseTheme(const std::wstring& themeString) noexcept;
-    static std::wstring _SerializeTheme(const winrt::Windows::UI::Xaml::ElementTheme theme) noexcept;
-
+    static std::wstring_view _SerializeTheme(const winrt::Windows::UI::Xaml::ElementTheme theme) noexcept;
 };

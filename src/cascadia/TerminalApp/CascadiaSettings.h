@@ -20,6 +20,7 @@ Author(s):
 #include "GlobalAppSettings.h"
 #include "Profile.h"
 
+static constexpr GUID AzureConnectionType = { 0xd9fcfdfa, 0xa479, 0x412c, { 0x83, 0xb7, 0xc5, 0x64, 0xe, 0x61, 0xcd, 0x62 } };
 
 namespace TerminalApp
 {
@@ -28,7 +29,6 @@ namespace TerminalApp
 
 class TerminalApp::CascadiaSettings final
 {
-
 public:
     CascadiaSettings();
     ~CascadiaSettings();
@@ -44,30 +44,29 @@ public:
 
     winrt::TerminalApp::AppKeyBindings GetKeybindings() const noexcept;
 
-    winrt::Windows::Data::Json::JsonObject ToJson() const;
-    static std::unique_ptr<CascadiaSettings> FromJson(winrt::Windows::Data::Json::JsonObject json);
+    Json::Value ToJson() const;
+    static std::unique_ptr<CascadiaSettings> FromJson(const Json::Value& json);
 
-    static winrt::hstring GetSettingsPath();
+    static std::wstring GetSettingsPath();
 
     const Profile* FindProfile(GUID profileGuid) const noexcept;
+
+    void CreateDefaults();
+
 private:
     GlobalAppSettings _globals;
     std::vector<Profile> _profiles;
 
-
     void _CreateDefaultKeybindings();
     void _CreateDefaultSchemes();
     void _CreateDefaultProfiles();
-    void _CreateDefaults();
 
     static bool _IsPackaged();
-    static void _SaveAsPackagedApp(const winrt::hstring content);
-    static void _SaveAsUnpackagedApp(const winrt::hstring content);
-    static std::wstring _GetFullPathToUnpackagedSettingsFile();
-    static winrt::hstring _GetPackagedSettingsPath();
-    static std::optional<winrt::hstring> _LoadAsPackagedApp();
-    static std::optional<winrt::hstring> _LoadAsUnpackagedApp();
-    static bool _IsPowerShellCoreInstalled(std::wstring_view programFileEnv, std::filesystem::path& cmdline);
-    static std::wstring ExpandEnvironmentVariableString(std::wstring_view source);
-    static Profile _CreateDefaultProfile(const std::wstring_view& name);
+    static void _WriteSettings(const std::string_view content);
+    static std::optional<std::string> _ReadSettings();
+
+    static bool _isPowerShellCoreInstalledInPath(const std::wstring_view programFileEnv, std::filesystem::path& cmdline);
+    static bool _isPowerShellCoreInstalled(std::filesystem::path& cmdline);
+    static void _AppendWslProfiles(std::vector<TerminalApp::Profile>& profileStorage);
+    static Profile _CreateDefaultProfile(const std::wstring_view name);
 };

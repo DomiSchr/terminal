@@ -558,22 +558,37 @@ bool TextBuffer::IncrementCircularBuffer()
 
 //Routine Description:
 // - Retrieves the position of the last non-space character on the final line of the text buffer.
+// - By default, we search the entire buffer to find the last non-space character
 //Arguments:
 // - <none>
 //Return Value:
 // - Coordinate position in screen coordinates (offset coordinates, not array index coordinates).
 COORD TextBuffer::GetLastNonSpaceCharacter() const
 {
-    COORD coordEndOfText;
-    // Always search the whole buffer, by starting at the bottom.
-    coordEndOfText.Y = GetSize().BottomInclusive();
+    return GetLastNonSpaceCharacter(GetSize());
+}
+
+//Routine Description:
+// - Retrieves the position of the last non-space character in the given viewport
+// - This is basically an optimized version of GetLastNonSpaceCharacter(), and can be called when
+// - we know the last character is within the given viewport (so we don't need to check the entire buffer)
+//Arguments:
+// - The viewport
+//Return value:
+// - Coordinate position (relative to the text buffer)
+COORD TextBuffer::GetLastNonSpaceCharacter(const Microsoft::Console::Types::Viewport viewport) const
+{
+    COORD coordEndOfText = { 0 };
+    // Search the given viewport by starting at the bottom.
+    coordEndOfText.Y = viewport.BottomInclusive();
 
     const ROW* pCurrRow = &GetRowByOffset(coordEndOfText.Y);
     // The X position of the end of the valid text is the Right draw boundary (which is one beyond the final valid character)
     coordEndOfText.X = static_cast<short>(pCurrRow->GetCharRow().MeasureRight()) - 1;
 
     // If the X coordinate turns out to be -1, the row was empty, we need to search backwards for the real end of text.
-    bool fDoBackUp = (coordEndOfText.X < 0 && coordEndOfText.Y > 0); // this row is empty, and we're not at the top
+    const auto viewportTop = viewport.Top();
+    bool fDoBackUp = (coordEndOfText.X < 0 && coordEndOfText.Y > viewportTop); // this row is empty, and we're not at the top
     while (fDoBackUp)
     {
         coordEndOfText.Y--;
@@ -581,7 +596,7 @@ COORD TextBuffer::GetLastNonSpaceCharacter() const
         // We need to back up to the previous row if this line is empty, AND there are more rows
 
         coordEndOfText.X = static_cast<short>(pCurrRow->GetCharRow().MeasureRight()) - 1;
-        fDoBackUp = (coordEndOfText.X < 0 && coordEndOfText.Y > 0);
+        fDoBackUp = (coordEndOfText.X < 0 && coordEndOfText.Y > viewportTop);
     }
 
     // don't allow negative results
@@ -748,8 +763,7 @@ const Cursor& TextBuffer::GetCursor() const
     return _cursor;
 }
 
-[[nodiscard]]
-TextAttribute TextBuffer::GetCurrentAttributes() const noexcept
+[[nodiscard]] TextAttribute TextBuffer::GetCurrentAttributes() const noexcept
 {
     return _currentAttributes;
 }
@@ -779,8 +793,7 @@ void TextBuffer::Reset()
 // - newSize - new size of screen.
 // Return Value:
 // - Success if successful. Invalid parameter if screen buffer size is unexpected. No memory if allocation failed.
-[[nodiscard]]
-NTSTATUS TextBuffer::ResizeTraditional(const COORD newSize) noexcept
+[[nodiscard]] NTSTATUS TextBuffer::ResizeTraditional(const COORD newSize) noexcept
 {
     RETURN_HR_IF(E_INVALIDARG, newSize.X < 0 || newSize.Y < 0);
 
@@ -822,7 +835,6 @@ NTSTATUS TextBuffer::ResizeTraditional(const COORD newSize) noexcept
         // Also take advantage of the row ID refresh loop to resize the rows in the X dimension
         // and cleanup the UnicodeStorage characters that might fall outside the resized buffer.
         _RefreshRowIDs(newSize.X);
-
     }
     CATCH_RETURN();
 
@@ -1012,7 +1024,7 @@ const TextBuffer::TextAndColor TextBuffer::GetTextForClipboard(const bool lineSe
                 // always apply \r\n for box selection
                 if (!lineSelection || !GetRowByOffset(iRow).GetCharRow().WasWrapForced())
                 {
-                    COLORREF const Blackness = RGB(0x00, 0x00, 0x00);      // cant see CR/LF so just use black FG & BK
+                    COLORREF const Blackness = RGB(0x00, 0x00, 0x00); // cant see CR/LF so just use black FG & BK
 
                     selectionText.push_back(UNICODE_CARRIAGERETURN);
                     selectionText.push_back(UNICODE_LINEFEED);
